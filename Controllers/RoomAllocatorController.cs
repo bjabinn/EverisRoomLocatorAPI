@@ -80,7 +80,7 @@ namespace SalasEveris.Controllers
             }
         }
 
-        [HttpPut("{id}"]
+        [HttpPut("{id}")]
         public async Task<IActionResult> Put(int id, [FromBody] Room room)
         {
             if (id != room.Id)
