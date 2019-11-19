@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace SalasEveris.Controllers
@@ -19,11 +22,11 @@ namespace SalasEveris.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<ActionResult<IEnumerable<Room>>> Get()
         {
             try {
-                var results = _context.Room.ToList();
-                return Ok(results);
+                var results = _context.Room.ToListAsync();
+                return await results;
             } catch (Exception ex)
             {
                 return StatusCode(500, "RoomAllocatorController - Get: " + ex.Message);
@@ -32,12 +35,17 @@ namespace SalasEveris.Controllers
 
 
         [HttpGet("{id}")]
-        public IActionResult Get(int id)
+        public async Task<ActionResult<Room>> Get(int id)
         {
             try
             {
-                var room = _context.Room.FirstOrDefault(m => m.Id == id);
-                return Ok(room);
+                var room = await _context.Room.FirstOrDefaultAsync(m => m.Id == id);
+                if (room == null)
+                {
+                    return NotFound();
+                }
+
+                return room;
             }
             catch (Exception ex)
             {
@@ -46,9 +54,8 @@ namespace SalasEveris.Controllers
 
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Post([FromBody] Room room)
+        [HttpPost]        
+        public async Task<ActionResult<Room>> Post([FromBody] Room room)
         {
             if (room == null)
             {
@@ -63,9 +70,9 @@ namespace SalasEveris.Controllers
             try
             {
                 var objetoInsertado = _context.Room.Add(room);
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
 
-                return Ok(objetoInsertado);
+                return CreatedAtAction(nameof(Get), new { id = room.Id }, room);
             }
             catch (Exception ex)
             {
@@ -73,16 +80,52 @@ namespace SalasEveris.Controllers
             }
         }
 
-        [HttpPut]
-        public Room Put(Room room)
+        [HttpPut("{id}"]
+        public async Task<IActionResult> Put(int id, [FromBody] Room room)
         {
-            return null;
+            if (id != room.Id)
+            {
+                return BadRequest();
+            }
+            _context.Entry(room).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!RoomExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return NoContent();
         }
 
-        [HttpDelete]
-        public Room Delete (Room room)
+        [HttpDelete("{id}")]
+        public async Task<ActionResult<Room>> Delete (long id)
         {
-            return null;
+            var room = await _context.Room.FindAsync(id);
+            if (room == null)
+            {
+                return NotFound();
+            }
+
+            _context.Room.Remove(room);
+            await _context.SaveChangesAsync();
+
+            return room;
         }
-    }
-}
+
+        private bool RoomExists(long id)
+        {
+            return _context.Room.Any(e => e.Id == id);
+        }
+
+    } //end of class
+} //end of namespace
